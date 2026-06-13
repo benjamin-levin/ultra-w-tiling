@@ -1,0 +1,226 @@
+diff -ruN kwin-v6.1.5.orig/src/input.cpp kwin-v6.1.5/src/input.cpp
+--- kwin-v6.1.5.orig/src/input.cpp	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/input.cpp	2026-06-13 11:44:39.754101422 -0400
+@@ -3357,6 +3357,11 @@
+     return m_keyboard->modifiersRelevantForGlobalShortcuts();
+ }
+ 
++bool InputRedirection::isKeyPressed(int key) const
++{
++    return m_keyboard->isKeyPressed(key);
++}
++
+ void InputRedirection::registerPointerShortcut(Qt::KeyboardModifiers modifiers, Qt::MouseButton pointerButtons, QAction *action)
+ {
+ #if KWIN_BUILD_GLOBALSHORTCUTS
+diff -ruN kwin-v6.1.5.orig/src/input.h kwin-v6.1.5/src/input.h
+--- kwin-v6.1.5.orig/src/input.h	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/input.h	2026-06-13 11:44:34.643074570 -0400
+@@ -124,6 +124,7 @@
+     Qt::MouseButtons qtButtonStates() const;
+     Qt::KeyboardModifiers keyboardModifiers() const;
+     Qt::KeyboardModifiers modifiersRelevantForGlobalShortcuts() const;
++    bool isKeyPressed(int key) const;
+ 
+     void registerPointerShortcut(Qt::KeyboardModifiers modifiers, Qt::MouseButton pointerButtons, QAction *action);
+     void registerAxisShortcut(Qt::KeyboardModifiers modifiers, PointerAxisDirection axis, QAction *action);
+diff -ruN kwin-v6.1.5.orig/src/keyboard_input.cpp kwin-v6.1.5/src/keyboard_input.cpp
+--- kwin-v6.1.5.orig/src/keyboard_input.cpp	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/keyboard_input.cpp	2026-06-13 11:44:28.068039907 -0400
+@@ -64,6 +64,11 @@
+     return m_xkb->modifiersRelevantForGlobalShortcuts();
+ }
+ 
++bool KeyboardInputRedirection::isKeyPressed(int key) const
++{
++    return m_pressedKeys.contains(key);
++}
++
+ KeyboardLayout *KeyboardInputRedirection::keyboardLayout() const
+ {
+     return m_keyboardLayout;
+@@ -246,8 +251,9 @@
+ 
+     const xkb_keysym_t keySym = m_xkb->toKeysym(key);
+     const Qt::KeyboardModifiers globalShortcutsModifiers = m_xkb->modifiersRelevantForGlobalShortcuts(key);
++    const Qt::Key qtKey = m_xkb->toQtKey(keySym, key, globalShortcutsModifiers ? Qt::ControlModifier : Qt::KeyboardModifiers());
+     KeyEvent event(type,
+-                   m_xkb->toQtKey(keySym, key, globalShortcutsModifiers ? Qt::ControlModifier : Qt::KeyboardModifiers()),
++                   qtKey,
+                    m_xkb->modifiers(),
+                    key,
+                    keySym,
+@@ -257,6 +263,14 @@
+                    device);
+     event.setModifiersRelevantForGlobalShortcuts(globalShortcutsModifiers);
+ 
++    if (!autoRepeat) {
++        if (type == QEvent::KeyPress) {
++            m_pressedKeys.insert(qtKey);
++        } else {
++            m_pressedKeys.remove(qtKey);
++        }
++    }
++
+     m_input->processSpies(std::bind(&InputEventSpy::keyEvent, std::placeholders::_1, &event));
+     if (!m_inited) {
+         return;
+diff -ruN kwin-v6.1.5.orig/src/keyboard_input.h kwin-v6.1.5/src/keyboard_input.h
+--- kwin-v6.1.5.orig/src/keyboard_input.h	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/keyboard_input.h	2026-06-13 11:44:18.361988481 -0400
+@@ -13,6 +13,7 @@
+ #include <QObject>
+ #include <QPointF>
+ #include <QPointer>
++#include <QSet>
+ 
+ #include <KSharedConfig>
+ 
+@@ -57,6 +58,7 @@
+     Xkb *xkb() const;
+     Qt::KeyboardModifiers modifiers() const;
+     Qt::KeyboardModifiers modifiersRelevantForGlobalShortcuts() const;
++    bool isKeyPressed(int key) const;
+     KeyboardLayout *keyboardLayout() const;
+ 
+ Q_SIGNALS:
+@@ -69,6 +71,7 @@
+     QMetaObject::Connection m_activeWindowSurfaceChangedConnection;
+     ModifiersChangedSpy *m_modifiersChangedSpy = nullptr;
+     KeyboardLayout *m_keyboardLayout = nullptr;
++    QSet<int> m_pressedKeys;
+ };
+ 
+ }
+diff -ruN kwin-v6.1.5.orig/src/tiles/tile.cpp kwin-v6.1.5/src/tiles/tile.cpp
+--- kwin-v6.1.5.orig/src/tiles/tile.cpp	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/tiles/tile.cpp	2026-06-13 11:45:11.842268157 -0400
+@@ -19,7 +19,7 @@
+ namespace KWin
+ {
+ 
+-QSizeF Tile::s_minimumSize = QSizeF(0.15, 0.15);
++QSizeF Tile::s_minimumSize = QSizeF(0.10, 0.10);
+ 
+ Tile::Tile(TileManager *tiling, Tile *parent)
+     : QObject(parent)
+diff -ruN kwin-v6.1.5.orig/src/window.cpp kwin-v6.1.5/src/window.cpp
+--- kwin-v6.1.5.orig/src/window.cpp	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/window.cpp	2026-06-13 12:19:25.484742180 -0400
+@@ -1182,6 +1182,9 @@
+     m_interactiveMoveResize.initialMaximizeMode = requestedMaximizeMode();
+     m_interactiveMoveResize.initialQuickTileMode = quickTileMode();
+     m_interactiveMoveResize.initialGeometryRestore = geometryRestore();
++    m_interactiveMoveResize.ultrawideShiftActive = input()->keyboardModifiers() & Qt::ShiftModifier;
++    m_interactiveMoveResize.ultrawideSpanActive = m_interactiveMoveResize.ultrawideShiftActive && input()->isKeyPressed(Qt::Key_CapsLock);
++    m_interactiveMoveResize.ultrawideSpanStart = m_interactiveMoveResize.anchor;
+ 
+     if (requestedMaximizeMode() != MaximizeRestore) {
+         switch (interactiveMoveResizeGravity()) {
+@@ -1236,6 +1239,8 @@
+ void Window::finishInteractiveMoveResize(bool cancel)
+ {
+     const bool wasMove = isInteractiveMove();
++    bool applyUltrawideSpanGeometry = false;
++    QRectF ultrawideSpanGeometry;
+     leaveInteractiveMoveResize();
+ 
+     doFinishInteractiveMoveResize();
+@@ -1259,14 +1264,31 @@
+     if (isElectricBorderMaximizing()) {
+         setQuickTileMode(electricBorderMode(), m_interactiveMoveResize.anchor);
+         setElectricBorderMaximizing(false);
+-    } else if (wasMove && (input()->keyboardModifiers() & Qt::ShiftModifier)) {
+-        setQuickTileMode(QuickTileFlag::Custom, m_interactiveMoveResize.anchor);
++    } else if (wasMove && m_interactiveMoveResize.ultrawideShiftActive) {
++        if (m_interactiveMoveResize.ultrawideSpanActive) {
++            const QRectF spanGeometry = quickTileSpanGeometry(m_interactiveMoveResize.ultrawideSpanStart, m_interactiveMoveResize.anchor);
++            if (!spanGeometry.isEmpty()) {
++                applyUltrawideSpanGeometry = true;
++                ultrawideSpanGeometry = spanGeometry;
++            }
++        } else {
++            setQuickTileMode(QuickTileFlag::Custom, m_interactiveMoveResize.anchor);
++        }
+     }
+     setElectricBorderMode(QuickTileMode(QuickTileFlag::None));
+     workspace()->outline()->hide();
+ 
+     m_interactiveMoveResize.counter++;
+     Q_EMIT interactiveMoveResizeFinished();
++
++    if (applyUltrawideSpanGeometry) {
++        QTimer::singleShot(0, this, [this, ultrawideSpanGeometry]() {
++            if (isDeleted()) {
++                return;
++            }
++            moveResize(ultrawideSpanGeometry);
++        });
++    }
+ }
+ 
+ // This function checks if it actually makes sense to perform a restricted move/resize.
+@@ -1413,8 +1435,16 @@
+ 
+         if (!isRequestedFullScreen()) {
+             if (input()->keyboardModifiers() & Qt::ShiftModifier) {
++                m_interactiveMoveResize.ultrawideShiftActive = true;
++                if (input()->isKeyPressed(Qt::Key_CapsLock) && !m_interactiveMoveResize.ultrawideSpanActive) {
++                    m_interactiveMoveResize.ultrawideSpanActive = true;
++                    m_interactiveMoveResize.ultrawideSpanStart = global;
++                }
++
+                 resetQuickTilingMaximizationZones();
+-                const auto &r = quickTileGeometry(QuickTileFlag::Custom, global);
++                const auto &r = m_interactiveMoveResize.ultrawideSpanActive
++                    ? quickTileSpanGeometry(m_interactiveMoveResize.ultrawideSpanStart, global)
++                    : quickTileGeometry(QuickTileFlag::Custom, global);
+                 if (r.isEmpty()) {
+                     workspace()->outline()->hide();
+                 } else {
+@@ -3408,6 +3438,24 @@
+     return workspace()->clientArea(MaximizeArea, this, pos);
+ }
+ 
++QRectF Window::quickTileSpanGeometry(const QPointF &startPos, const QPointF &endPos) const
++{
++    Output *startOutput = workspace()->outputAt(startPos);
++    Output *endOutput = workspace()->outputAt(endPos);
++    if (!startOutput || !endOutput || startOutput != endOutput) {
++        return quickTileGeometry(QuickTileFlag::Custom, endPos);
++    }
++
++    TileManager *manager = workspace()->tileManager(endOutput);
++    Tile *startTile = manager->bestTileForPosition(startPos);
++    Tile *endTile = manager->bestTileForPosition(endPos);
++    if (!startTile || !endTile) {
++        return QRectF();
++    }
++
++    return startTile->windowGeometry().united(endTile->windowGeometry());
++}
++
+ void Window::updateQuickTileMode(QuickTileMode newMode)
+ {
+     if (m_requestedQuickTileMode == newMode) {
+diff -ruN kwin-v6.1.5.orig/src/window.h kwin-v6.1.5/src/window.h
+--- kwin-v6.1.5.orig/src/window.h	2024-09-10 04:29:07.000000000 -0400
++++ kwin-v6.1.5/src/window.h	2026-06-13 11:44:46.184135085 -0400
+@@ -1552,6 +1552,7 @@
+     void updateElectricGeometryRestore();
+     QRectF quickTileGeometryRestore() const;
+     QRectF quickTileGeometry(QuickTileMode mode, const QPointF &pos) const;
++    QRectF quickTileSpanGeometry(const QPointF &startPos, const QPointF &endPos) const;
+     void updateQuickTileMode(QuickTileMode newMode);
+ 
+     // geometry handling
+@@ -1823,6 +1824,9 @@
+         uint32_t counter = 0;
+         MaximizeMode initialMaximizeMode;
+         QuickTileMode initialQuickTileMode;
++        bool ultrawideShiftActive = false;
++        bool ultrawideSpanActive = false;
++        QPointF ultrawideSpanStart;
+     } m_interactiveMoveResize;
+ 
+     struct

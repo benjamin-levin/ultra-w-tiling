@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Name": "Ultrawide Zones",
+        "Description": "Shortcut-driven segment layouts for ultrawide displays",
+        "Icon": "preferences-system-windows",
+        "Authors": [
+            {
+                "Name": "Powerhouse"
+            }
+        ],
+        "Id": "ultrawidezones",
+        "Version": "1.0",
+        "License": "GPL-2.0-or-later"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js",
+    "KPackageStructure": "KWin/Script"
+}

@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Powerhouse
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import json
+import os
+import re
+import sys
+import time
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gio", "2.0")
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib
+
+
+BUS_NAME = "org.powerhouse.UltrawideZones"
+OBJECT_PATH = "/org/powerhouse/UltrawideZones"
+INTERFACE = "org.powerhouse.UltrawideZones"
+
+INTROSPECTION_XML = f"""
+<node>
+  <interface name="{INTERFACE}">
+    <method name="SetMode">
+      <arg name="count" type="i" direction="in"/>
+      <arg name="ok" type="b" direction="out"/>
+    </method>
+    <method name="GetMode">
+      <arg name="count" type="i" direction="out"/>
+    </method>
+    <method name="Ping">
+      <arg name="ok" type="b" direction="out"/>
+    </method>
+  </interface>
+</node>
+"""
+
+MODE_RE = re.compile(r"^\[Tiling\]\[[^\]]+\]$")
+MODE_GROUP = "[UltrawideZones]"
+MODE_KEY = "mode="
+
+
+def kwinrc_path():
+    return Path(os.environ.get("KWINRC", Path.home() / ".config" / "kwinrc"))
+
+
+def layout_json(count):
+    width = 1.0 / count
+    return json.dumps(
+        {
+            "layoutDirection": "horizontal",
+            "tiles": [{"width": width} for _ in range(count)],
+        },
+        separators=(",", ":"),
+    )
+
+
+def current_mode():
+    path = kwinrc_path()
+    if not path.exists():
+        return 3
+
+    lines = path.read_text().splitlines()
+    in_mode_group = False
+
+    for line in lines:
+        if line.startswith("["):
+            in_mode_group = line == MODE_GROUP
+            continue
+
+        if not in_mode_group or not line.startswith(MODE_KEY):
+            continue
+
+        try:
+            count = int(line[len(MODE_KEY):])
+        except ValueError:
+            continue
+
+        if count in range(3, 9):
+            return count
+
+    in_tiling_output = False
+
+    for line in lines:
+        if line.startswith("["):
+            in_tiling_output = bool(MODE_RE.match(line))
+            continue
+
+        if not in_tiling_output or not line.startswith("tiles="):
+            continue
+
+        try:
+            layout = json.loads(line[len("tiles="):])
+            count = len(layout.get("tiles", []))
+        except Exception:
+            continue
+
+        if count in range(3, 9):
+            return count
+
+    return 3
+
+
+def rewrite_kwinrc(count):
+    path = kwinrc_path()
+    lines = path.read_text().splitlines()
+    replacement = "tiles=" + layout_json(count)
+    mode_replacement = MODE_KEY + str(count)
+    out = []
+    in_tiling_output = False
+    in_mode_group = False
+    saw_mode_group = False
+    wrote_mode = False
+    replaced = 0
+
+    for line in lines:
+        if line.startswith("["):
+            if in_mode_group and not wrote_mode:
+                out.append(mode_replacement)
+                wrote_mode = True
+
+            in_mode_group = line == MODE_GROUP
+            if in_mode_group:
+                saw_mode_group = True
+
+            in_tiling_output = bool(MODE_RE.match(line))
+            out.append(line)
+            continue
+
+        if in_mode_group and line.startswith(MODE_KEY):
+            out.append(mode_replacement)
+            wrote_mode = True
+            continue
+
+        if in_tiling_output and line.startswith("tiles="):
+            out.append(replacement)
+            replaced += 1
+        else:
+            out.append(line)
+
+    if in_mode_group and not wrote_mode:
+        out.append(mode_replacement)
+        wrote_mode = True
+
+    if not saw_mode_group:
+        if out and out[-1] != "":
+            out.append("")
+        out.append(MODE_GROUP)
+        out.append(mode_replacement)
+
+    backup = path.with_suffix(path.suffix + ".ultrawidezones.bak")
+    backup.write_text("\n".join(lines) + "\n")
+
+    tmp = path.with_suffix(path.suffix + ".ultrawidezones.tmp")
+    tmp.write_text("\n".join(out) + "\n")
+    tmp.replace(path)
+    return replaced
+
+
+def notify(bus, count):
+    body = f"{count} column drag grid"
+    bus.call_sync(
+        "org.freedesktop.Notifications",
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        "Notify",
+        GLib.Variant(
+            "(susssasa{sv}i)",
+            ("Ultrawide Zones", 0, "preferences-system-windows", "Ultrawide Zones", body, [], {}, 1200),
+        ),
+        None,
+        Gio.DBusCallFlags.NONE,
+        1000,
+        None,
+    )
+
+
+def reconfigure_kwin(bus):
+    bus.call_sync(
+        "org.kde.KWin",
+        "/KWin",
+        "org.kde.KWin",
+        "reconfigure",
+        None,
+        None,
+        Gio.DBusCallFlags.NONE,
+        1000,
+        None,
+    )
+
+
+class Service:
+    def __init__(self):
+        self.loop = GLib.MainLoop()
+        self.node_info = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION_XML)
+        self.registration_id = None
+        self.bus = None
+        self.quit_source = None
+
+    def reset_idle_timeout(self):
+        if self.quit_source is not None:
+            GLib.source_remove(self.quit_source)
+        self.quit_source = GLib.timeout_add_seconds(20, self.quit)
+
+    def quit(self):
+        self.loop.quit()
+        return GLib.SOURCE_REMOVE
+
+    def on_method_call(self, connection, sender, object_path, interface_name, method_name, parameters, invocation):
+        self.reset_idle_timeout()
+
+        if method_name == "Ping":
+            invocation.return_value(GLib.Variant("(b)", (True,)))
+            return
+
+        if method_name == "GetMode":
+            invocation.return_value(GLib.Variant("(i)", (current_mode(),)))
+            return
+
+        if method_name != "SetMode":
+            invocation.return_dbus_error(f"{INTERFACE}.Error", f"Unknown method: {method_name}")
+            return
+
+        count = parameters.unpack()[0]
+        if count not in range(3, 9):
+            invocation.return_dbus_error(f"{INTERFACE}.InvalidMode", "Mode must be between 3 and 8")
+            return
+
+        try:
+            rewrite_kwinrc(count)
+            reconfigure_kwin(connection)
+            notify(connection, count)
+            invocation.return_value(GLib.Variant("(b)", (True,)))
+        except Exception as exc:
+            invocation.return_dbus_error(f"{INTERFACE}.Failed", str(exc))
+
+    def on_bus_acquired(self, connection, name):
+        self.bus = connection
+        self.registration_id = connection.register_object(
+            OBJECT_PATH,
+            self.node_info.interfaces[0],
+            self.on_method_call,
+            None,
+            None,
+        )
+        self.reset_idle_timeout()
+
+    def on_name_lost(self, connection, name):
+        self.loop.quit()
+
+    def run(self):
+        Gio.bus_own_name(
+            Gio.BusType.SESSION,
+            BUS_NAME,
+            Gio.BusNameOwnerFlags.NONE,
+            self.on_bus_acquired,
+            None,
+            self.on_name_lost,
+        )
+        self.loop.run()
+
+
+if __name__ == "__main__":
+    try:
+        Service().run()
+    except Exception as exc:
+        print(f"ultrawidezones-service: {exc}", file=sys.stderr)
+        time.sleep(1)
+        sys.exit(1)
