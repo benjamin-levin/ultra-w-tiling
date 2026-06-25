@@ -1,5 +1,26 @@
 # Architecture
 
+Ultra-W Tiling has separate Linux/KWin and macOS implementations because the window-management APIs are completely different.
+
+## macOS Backend
+
+The macOS backend in `macos/` is a native Swift/AppKit menu-bar app.
+
+Runtime pieces:
+
+- `AppController` owns the menu-bar item, mode selection, permissions prompt, hotkeys, and gesture watcher.
+- `HotkeyController` registers `Command+Option+3` through `Command+Option+8` with Carbon global hotkeys.
+- `GestureController` installs a listen-only Core Graphics event tap and watches Shift-drag gestures that begin in the focused window's titlebar.
+- `OverlayController` displays a transparent non-activating `NSPanel` over the active screen and draws segment previews.
+- `AccessibilityWindowController` reads and writes the focused window frame through AXUIElement Accessibility attributes.
+- `ZoneEngine` contains the shared horizontal segment math.
+
+The macOS backend does not use private APIs and does not patch WindowServer. It needs Accessibility permission to move windows and may need Input Monitoring permission for the event tap.
+
+CapsLock is not as clean on macOS as it is in patched KWin because macOS primarily exposes it as a lock state. The app treats `Shift+Control` as the reliable span gesture and also accepts CapsLock when macOS reports it in event flags.
+
+## Linux/KWin Backend
+
 KWin Ultrawide Zones has three runtime pieces and one build-time piece.
 
 ## Native KWin Patch

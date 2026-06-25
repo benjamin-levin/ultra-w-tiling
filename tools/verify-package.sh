@@ -17,6 +17,7 @@ search() {
 echo "Checking shell syntax"
 bash -n "$ROOT/scripts/install.sh"
 bash -n "$ROOT/scripts/build-ultrawidezones-kwin.sh"
+bash -n "$ROOT/macos/scripts/build-app.sh"
 bash -n "$ROOT/tools/verify-package.sh"
 
 echo "Checking service syntax"
@@ -40,5 +41,12 @@ search 'quickTileSpanGeometry' "$PATCH_FILE"
 search 'isKeyPressed' "$PATCH_FILE"
 search 'QSizeF\(0\.10, 0\.10\)' "$PATCH_FILE"
 search 'QTimer::singleShot' "$PATCH_FILE"
+
+if [[ "$(uname -s)" == "Darwin" ]] && command -v swift >/dev/null 2>&1; then
+  echo "Checking macOS Swift package"
+  swift build --package-path "$ROOT/macos"
+else
+  echo "Skipping macOS Swift build because this host is not macOS with Swift"
+fi
 
 echo "Package verification passed"

@@ -1,6 +1,10 @@
-# KWin Ultrawide Zones
+# Ultra-W Tiling
 
-KWin Ultrawide Zones is a Plasma/KWin 6.1.5 customization for 32:9 displays. It makes KWin's native Shift-drag tiling overlay behave like a fast horizontal zone picker for 3 through 8 equal columns.
+Ultra-W Tiling is an ultrawide window tiling project for 32:9 displays. It provides fast horizontal zone picking for 3 through 8 equal columns.
+
+The Linux implementation is a Plasma/KWin 6.1.5 customization. The macOS implementation is a native Swift/AppKit menu-bar app.
+
+## Linux/KWin
 
 The current behavior is:
 
@@ -12,13 +16,13 @@ The current behavior is:
 
 This repository contains a KWin script, a small D-Bus activation service, and a native KWin patch. The native patch is required because the stock KWin Shift overlay is owned by KWin itself, not by JavaScript KWin scripts.
 
-## Supported Target
+### Supported Target
 
 This is currently version-locked to KWin 6.1.5 on an apt-based Plasma 6 system. It was built for a local Plasma Wayland setup where KWin reports version `6.1.5`.
 
 Do not apply the patch blindly to another KWin release. KWin has no stable internal ABI for this kind of compositor patch.
 
-## Install
+### Install
 
 Run from the repository root:
 
@@ -37,7 +41,7 @@ Useful environment variables:
 - `SRC=/path/to/kwin-v6.1.5` uses an existing KWin source tree.
 - `ALLOW_VERSION_MISMATCH=1` bypasses the installed KWin version guard.
 
-## Usage
+### Usage
 
 Use `Meta+Alt+3`, `Meta+Alt+4`, `Meta+Alt+5`, `Meta+Alt+6`, `Meta+Alt+7`, or `Meta+Alt+8` to choose the segmentation count.
 
@@ -45,7 +49,7 @@ Hold Shift while dragging a window to select one segment.
 
 Hold Shift+CapsLock while dragging a window to span multiple adjacent segments. Start the drag over the first desired segment and release over the last desired segment.
 
-## Restore
+### Restore
 
 Each install writes a restore script under the newest `/var/backups/kwin-ultrawidezones-*` directory:
 
@@ -54,6 +58,32 @@ sudo /var/backups/kwin-ultrawidezones-YYYYMMDD-HHMMSS/restore.sh
 ```
 
 Log out and back in after restoring. Reinstalling the distro KWin package also replaces the patched compositor files.
+
+## macOS
+
+The macOS implementation lives in `macos/`. It uses public macOS APIs rather than private WindowServer patches:
+
+- Accessibility APIs move and resize the focused window.
+- Carbon hotkeys switch modes with `Command+Option+3` through `Command+Option+8`.
+- A listen-only Core Graphics event tap watches Shift-drag gestures.
+- A transparent AppKit overlay draws the zone preview.
+
+Build it on macOS:
+
+```bash
+cd macos
+./scripts/build-app.sh
+open "dist/Ultra-W Tiling.app"
+```
+
+On first run, grant Accessibility permission. If drag detection does not start, grant Input Monitoring permission and restart the app.
+
+macOS usage:
+
+- `Command+Option+3` through `Command+Option+8` switch the active drag grid.
+- Shift-drag a focused window by its titlebar to select one segment.
+- Shift+Control-drag spans multiple segments.
+- CapsLock is also accepted when macOS reports it in event flags, but `Shift+Control` is the reliable macOS span modifier.
 
 ## License
 
