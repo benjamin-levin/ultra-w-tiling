@@ -9,8 +9,8 @@ The Linux implementation is a Plasma/KWin 6.1.5 customization. The macOS impleme
 The current behavior is:
 
 - `Meta+Alt+3` through `Meta+Alt+8` switch the active drag grid and show a desktop notification.
-- Shift-drag previews and drops a window into the single segment under the pointer.
-- Shift+CapsLock-drag previews and drops a window across every segment from the drag start segment to the release segment.
+- Alt-drag previews and drops a window into the single segment under the pointer.
+- Alt+Shift-drag previews and drops a window across every segment from the drag start segment to the release segment.
 - Existing tiled windows are preserved when switching modes.
 - The old external input watcher is disabled; modifier detection happens inside KWin.
 
@@ -45,9 +45,9 @@ Useful environment variables:
 
 Use `Meta+Alt+3`, `Meta+Alt+4`, `Meta+Alt+5`, `Meta+Alt+6`, `Meta+Alt+7`, or `Meta+Alt+8` to choose the segmentation count.
 
-Hold Shift while dragging a window to select one segment.
+Hold Alt while dragging a window to select one segment.
 
-Hold Shift+CapsLock while dragging a window to span multiple adjacent segments. Start the drag over the first desired segment and release over the last desired segment.
+Hold Alt+Shift while dragging a window to span multiple adjacent segments. Start the drag over the first desired segment and release over the last desired segment.
 
 ### Restore
 
@@ -65,7 +65,7 @@ The macOS implementation lives in `macos/`. It uses public macOS APIs rather tha
 
 - Accessibility APIs move and resize the focused window.
 - Carbon hotkeys switch modes with `Command+Option+3` through `Command+Option+8`.
-- A listen-only Core Graphics event tap watches Shift-drag gestures.
+- A listen-only Core Graphics event tap watches Option-drag gestures.
 - A transparent AppKit overlay draws the zone preview.
 
 Build it on macOS:
@@ -81,9 +81,8 @@ On first run, grant Accessibility permission. If drag detection does not start, 
 macOS usage:
 
 - `Command+Option+3` through `Command+Option+8` switch the active drag grid.
-- Shift-drag a focused window by its titlebar to select one segment.
-- Shift+Control-drag spans multiple segments.
-- CapsLock is also accepted when macOS reports it in event flags, but `Shift+Control` is the reliable macOS span modifier.
+- Option-drag a focused window by its titlebar to select one segment.
+- Option+Shift-drag spans multiple segments.
 
 ## License
 

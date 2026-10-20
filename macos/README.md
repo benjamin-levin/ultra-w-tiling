@@ -4,7 +4,7 @@ This is the macOS companion implementation for Ultra-W Tiling. It is a native Sw
 
 - Accessibility APIs resize the focused window.
 - Carbon global hotkeys switch between 3 through 8 columns.
-- A listen-only Core Graphics event tap watches Shift-drag gestures.
+- A listen-only Core Graphics event tap watches Option-drag gestures.
 - A transparent `NSPanel` draws the drag preview overlay.
 
 ## Build
@@ -31,13 +31,12 @@ Open the app bundle:
 open "dist/Ultra-W Tiling.app"
 ```
 
-On first run, grant Accessibility permission. If Shift-drag detection does not start, grant Input Monitoring permission as well, then restart the app.
+On first run, grant Accessibility permission. If Option-drag detection does not start, grant Input Monitoring permission as well, then restart the app.
 
 ## Usage
 
 - `Command+Option+3` through `Command+Option+8` switch the column count.
-- Shift-drag a focused window by its titlebar to select one segment.
-- Shift+Control-drag spans from the starting segment to the release segment.
-- CapsLock is also treated as a span signal when macOS reports it in event flags, but `Shift+Control` is the reliable macOS modifier.
+- Option-drag a focused window by its titlebar to select one segment.
+- Option+Shift-drag spans from the starting segment to the release segment.
 
 The app is intentionally menu-bar only. It does not patch WindowServer or use private APIs.

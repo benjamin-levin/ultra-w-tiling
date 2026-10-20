@@ -296,7 +296,7 @@ function selectionForMove(window, state) {
 }
 
 function showSelectionOutline(window, state) {
-    // KWin already draws a native outline whenever physical Shift is held
+    // KWin already draws a native outline whenever physical Alt is held
     // during a move. Drawing a second outline here causes competing previews.
     return;
 }

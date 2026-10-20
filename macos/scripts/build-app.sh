@@ -44,7 +44,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<EOF
   <key>LSUIElement</key>
   <true/>
   <key>NSInputMonitoringUsageDescription</key>
-  <string>Ultra-W Tiling watches Shift-drag gestures to preview and place windows into ultrawide zones.</string>
+  <string>Ultra-W Tiling watches Option-drag gestures to preview and place windows into ultrawide zones.</string>
   <key>NSAccessibilityUsageDescription</key>
   <string>Ultra-W Tiling uses Accessibility to move and resize windows into selected zones.</string>
 </dict>

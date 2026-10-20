@@ -202,7 +202,7 @@ prepare_source() {
 }
 
 verify_patched_source() {
-  grep -q 'quickTileSpanGeometry' "$SRC/src/window.cpp" || die "KWin source is missing the Shift+Caps span patch"
+  grep -q 'quickTileSpanGeometry' "$SRC/src/window.cpp" || die "KWin source is missing the Alt+Shift span patch"
   grep -q 'isKeyPressed' "$SRC/src/input.cpp" || die "KWin source is missing the physical key state patch"
   grep -q 'QSizeF(0.10, 0.10)' "$SRC/src/tiles/tile.cpp" || die "KWin source is missing the smaller custom tile minimum"
 }
@@ -439,8 +439,8 @@ Done.
 Next steps:
   1. Log out of Plasma Wayland and log back in.
   2. Use Meta+Alt+3 through Meta+Alt+8 to switch column count.
-  3. Shift-drag selects one segment.
-  4. Shift+CapsLock-drag spans from the first segment to the segment under the pointer.
+  3. Alt-drag selects one segment.
+  4. Alt+Shift-drag spans from the first segment to the segment under the pointer.
 
 Configure log: $CONFIG_LOG
 Build log:     $BUILD_LOG

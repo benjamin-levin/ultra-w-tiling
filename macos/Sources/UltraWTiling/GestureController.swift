@@ -85,7 +85,7 @@ final class GestureController {
 
     private func handleMouseDown(_ event: CGEvent) {
         let flags = event.flags
-        guard flags.contains(.maskShift),
+        guard flags.contains(.maskAlternate),
               let window = accessibility.focusedWindow(),
               let screen = CoordinateSpace.screen(containing: mouseLocation) else {
             return
@@ -96,7 +96,7 @@ final class GestureController {
             return
         }
 
-        let span = flags.contains(.maskControl) || flags.contains(.maskAlphaShift)
+        let span = flags.contains(.maskShift)
         let start = zoneEngine.zoneIndex(at: point, in: screen.visibleFrame)
         drag = ActiveDrag(
             window: window,
@@ -116,7 +116,7 @@ final class GestureController {
         }
 
         let flags = event.flags
-        drag.span = drag.span || flags.contains(.maskControl) || flags.contains(.maskAlphaShift)
+        drag.span = drag.span || flags.contains(.maskShift)
         self.drag = drag
 
         let point = mouseLocation

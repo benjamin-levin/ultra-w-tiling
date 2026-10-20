@@ -111,8 +111,8 @@ diff -ruN kwin-v6.1.5.orig/src/window.cpp kwin-v6.1.5/src/window.cpp
      m_interactiveMoveResize.initialMaximizeMode = requestedMaximizeMode();
      m_interactiveMoveResize.initialQuickTileMode = quickTileMode();
      m_interactiveMoveResize.initialGeometryRestore = geometryRestore();
-+    m_interactiveMoveResize.ultrawideShiftActive = input()->keyboardModifiers() & Qt::ShiftModifier;
-+    m_interactiveMoveResize.ultrawideSpanActive = m_interactiveMoveResize.ultrawideShiftActive && input()->isKeyPressed(Qt::Key_CapsLock);
++    m_interactiveMoveResize.ultrawideShiftActive = input()->keyboardModifiers() & Qt::AltModifier;
++    m_interactiveMoveResize.ultrawideSpanActive = m_interactiveMoveResize.ultrawideShiftActive && (input()->keyboardModifiers() & Qt::ShiftModifier);
 +    m_interactiveMoveResize.ultrawideSpanStart = m_interactiveMoveResize.anchor;
  
      if (requestedMaximizeMode() != MaximizeRestore) {
@@ -163,9 +163,10 @@ diff -ruN kwin-v6.1.5.orig/src/window.cpp kwin-v6.1.5/src/window.cpp
 @@ -1413,8 +1435,16 @@
  
          if (!isRequestedFullScreen()) {
-             if (input()->keyboardModifiers() & Qt::ShiftModifier) {
+-            if (input()->keyboardModifiers() & Qt::ShiftModifier) {
++            if (input()->keyboardModifiers() & Qt::AltModifier) {
 +                m_interactiveMoveResize.ultrawideShiftActive = true;
-+                if (input()->isKeyPressed(Qt::Key_CapsLock) && !m_interactiveMoveResize.ultrawideSpanActive) {
++                if ((input()->keyboardModifiers() & Qt::ShiftModifier) && !m_interactiveMoveResize.ultrawideSpanActive) {
 +                    m_interactiveMoveResize.ultrawideSpanActive = true;
 +                    m_interactiveMoveResize.ultrawideSpanStart = global;
 +                }

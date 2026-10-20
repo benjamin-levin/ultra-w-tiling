@@ -45,9 +45,9 @@ This usually means stock KWin is running instead of the patched KWin, or the KWi
 
 Confirm you logged out and back in after installation. If a distro package upgrade replaced KWin, rerun the installer or reinstall the patched package.
 
-## Shift+CapsLock Does Not Span
+## Alt+Shift Does Not Span
 
-Make sure CapsLock is physically held during the drag. CapsLock is used as a held modifier here; its lock state is not the signal.
+Make sure both Alt and Shift are held during the drag. If Alt-drag moves the window without any outline, check that the KDE window-action modifier (System Settings > Window Management > Window Behavior > Window Actions) is not intercepting it in a way that bypasses interactive move.
 
 The old external input watcher should be disabled:
 

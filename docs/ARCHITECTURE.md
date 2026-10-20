@@ -10,14 +10,14 @@ Runtime pieces:
 
 - `AppController` owns the menu-bar item, mode selection, permissions prompt, hotkeys, and gesture watcher.
 - `HotkeyController` registers `Command+Option+3` through `Command+Option+8` with Carbon global hotkeys.
-- `GestureController` installs a listen-only Core Graphics event tap and watches Shift-drag gestures that begin in the focused window's titlebar.
+- `GestureController` installs a listen-only Core Graphics event tap and watches Option-drag gestures that begin in the focused window's titlebar.
 - `OverlayController` displays a transparent non-activating `NSPanel` over the active screen and draws segment previews.
 - `AccessibilityWindowController` reads and writes the focused window frame through AXUIElement Accessibility attributes.
 - `ZoneEngine` contains the shared horizontal segment math.
 
 The macOS backend does not use private APIs and does not patch WindowServer. It needs Accessibility permission to move windows and may need Input Monitoring permission for the event tap.
 
-CapsLock is not as clean on macOS as it is in patched KWin because macOS primarily exposes it as a lock state. The app treats `Shift+Control` as the reliable span gesture and also accepts CapsLock when macOS reports it in event flags.
+Option-drag selects one segment and Option+Shift-drag spans segments.
 
 ## Linux/KWin Backend
 
@@ -27,10 +27,10 @@ KWin Ultrawide Zones has three runtime pieces and one build-time piece.
 
 `patches/kwin-6.1.5-ultrawide-zones.patch` changes KWin internals so the compositor owns the drag behavior:
 
-- tracks physical key state for Shift and CapsLock during interactive move/resize;
+- uses Alt instead of Shift to trigger KWin's custom-tile drag outline;
 - lowers KWin's custom tile minimum width from `0.15` to `0.10`, which allows 7 and 8 equal columns;
-- latches Shift at move start for single-segment tiling;
-- latches Shift+CapsLock for span tiling;
+- latches Alt at move start for single-segment tiling;
+- latches Alt+Shift for span tiling;
 - computes the span geometry from the drag start and current pointer position;
 - applies the final span geometry after KWin finishes its normal move flow.
 
