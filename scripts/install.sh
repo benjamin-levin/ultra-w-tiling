@@ -156,7 +156,7 @@ The installer will:
   - back up overwritten /usr files under /var/backups/kwin-ultrawidezones-*
   - atomically replace the staged KWin files in /usr
   - install the Ultrawide Zones KWin script and D-Bus service in your home directory
-  - enable Meta+Alt+3 through Meta+Alt+8 shortcuts
+  - enable Meta+Alt+2 through Meta+Alt+8 shortcuts
   - disable the older external input watcher service, if it exists
 
 You must log out of Plasma Wayland and log back in after this finishes.
@@ -205,6 +205,25 @@ prepare_source() {
 
   say "Applying Ultrawide Zones KWin patch"
   patch -d "$SRC" -p1 < "$PATCH_FILE"
+}
+
+# Distro point releases (e.g. Ubuntu's KWin 6.6.6) build against slightly older
+# Plasma libraries from the same 6.x series. Lower KWin's same-release dependency
+# floor to the oldest installed one so configure accepts them, as the distro does.
+align_dependency_versions() {
+  local dep_version="${KWIN_DEP_VERSION:-}"
+  if [[ -z "$dep_version" ]]; then
+    dep_version="$(
+      dpkg-query -W -f='${Version}\n' libkdecorations3-dev kwayland-dev knighttime-dev libplasma-dev libplasmaactivities-dev 2>/dev/null \
+        | sed -E 's/^[0-9]+://; s/-.*$//' | sort -V | head -n 1
+    )"
+  fi
+  [[ -n "$dep_version" ]] || die "Could not determine installed Plasma library versions; set KWIN_DEP_VERSION"
+  [[ "${dep_version%.*}" == "${KWIN_VERSION%.*}" ]] || die "Installed Plasma libraries are $dep_version, which is not in the KWin ${KWIN_VERSION%.*} series"
+
+  say "Building against Plasma libraries $dep_version"
+  sed -i -E "s/^set\(PROJECT_DEP_VERSION \"[^\"]+\"\)/set(PROJECT_DEP_VERSION \"$dep_version\")/" "$SRC/CMakeLists.txt"
+  grep -q "set(PROJECT_DEP_VERSION \"$dep_version\")" "$SRC/CMakeLists.txt" || die "Could not set PROJECT_DEP_VERSION in $SRC/CMakeLists.txt"
 }
 
 verify_patched_source() {
@@ -375,13 +394,14 @@ def get_key(lines, section, key):
 
 kwin_lines = read_lines(kwinrc)
 mode = get_key(kwin_lines, "UltrawideZones", "mode")
-if mode not in {"3", "4", "5", "6", "7", "8"}:
+if mode not in {"2", "3", "4", "5", "6", "7", "8"}:
     mode = "3"
 kwin_lines = set_key(kwin_lines, "Plugins", "ultrawidezonesEnabled", "true")
 kwin_lines = set_key(kwin_lines, "UltrawideZones", "mode", mode)
 write_lines(kwinrc, kwin_lines)
 
 shortcut_values = {
+    "UltrawideZones2": "Meta+Alt+2,none,Ultrawide Zones: 2 Columns",
     "UltrawideZones3": "Meta+Alt+3,none,Ultrawide Zones: 3 Columns",
     "UltrawideZones4": "Meta+Alt+4,none,Ultrawide Zones: 4 Columns",
     "UltrawideZones5": "Meta+Alt+5,none,Ultrawide Zones: 5 Columns",
@@ -427,6 +447,7 @@ main() {
   confirm
   install_dependencies
   prepare_source
+  align_dependency_versions
   verify_patched_source
   configure_build
   build_kwin
@@ -443,7 +464,7 @@ Done.
 
 Next steps:
   1. Log out of Plasma Wayland and log back in.
-  2. Use Meta+Alt+3 through Meta+Alt+8 to switch column count.
+  2. Use Meta+Alt+2 through Meta+Alt+8 to switch column count.
   3. Alt-drag selects one segment.
   4. Alt+Shift-drag spans from the first segment to the segment under the pointer.
 

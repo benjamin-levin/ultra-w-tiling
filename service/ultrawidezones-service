@@ -78,7 +78,7 @@ def current_mode():
         except ValueError:
             continue
 
-        if count in range(3, 9):
+        if count in range(2, 9):
             return count
 
     in_tiling_output = False
@@ -97,7 +97,7 @@ def current_mode():
         except Exception:
             continue
 
-        if count in range(3, 9):
+        if count in range(2, 9):
             return count
 
     return 3
@@ -224,8 +224,8 @@ class Service:
             return
 
         count = parameters.unpack()[0]
-        if count not in range(3, 9):
-            invocation.return_dbus_error(f"{INTERFACE}.InvalidMode", "Mode must be between 3 and 8")
+        if count not in range(2, 9):
+            invocation.return_dbus_error(f"{INTERFACE}.InvalidMode", "Mode must be between 2 and 8")
             return
 
         try:

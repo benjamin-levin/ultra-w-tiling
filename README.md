@@ -1,6 +1,6 @@
 # Ultra-W Tiling
 
-Ultra-W Tiling is an ultrawide window tiling project for 32:9 displays. It provides fast horizontal zone picking for 3 through 8 equal columns.
+Ultra-W Tiling is an ultrawide window tiling project for 32:9 displays. It provides fast horizontal zone picking for 2 through 8 equal columns.
 
 The Linux implementation is a Plasma/KWin 6.6.6 customization. The macOS implementation is a native Swift/AppKit menu-bar app.
 
@@ -8,7 +8,7 @@ The Linux implementation is a Plasma/KWin 6.6.6 customization. The macOS impleme
 
 The current behavior is:
 
-- `Meta+Alt+3` through `Meta+Alt+8` switch the active drag grid and show a desktop notification.
+- `Meta+Alt+2` through `Meta+Alt+8` switch the active drag grid and show a desktop notification.
 - Alt-drag previews and drops a window into the single segment under the pointer.
 - Alt+Shift-drag previews and drops a window across every segment from the drag start segment to the release segment.
 - Existing tiled windows are preserved when switching modes.
@@ -43,7 +43,7 @@ Useful environment variables:
 
 ### Usage
 
-Use `Meta+Alt+3`, `Meta+Alt+4`, `Meta+Alt+5`, `Meta+Alt+6`, `Meta+Alt+7`, or `Meta+Alt+8` to choose the segmentation count.
+Use `Meta+Alt+2`, `Meta+Alt+3`, `Meta+Alt+4`, `Meta+Alt+5`, `Meta+Alt+6`, `Meta+Alt+7`, or `Meta+Alt+8` to choose the segmentation count.
 
 Hold Alt while dragging a window to select one segment.
 
@@ -64,7 +64,7 @@ Log out and back in after restoring. Reinstalling the distro KWin package also r
 The macOS implementation lives in `macos/`. It uses public macOS APIs rather than private WindowServer patches:
 
 - Accessibility APIs move and resize the focused window.
-- Carbon hotkeys switch modes with `Command+Option+3` through `Command+Option+8`.
+- Carbon hotkeys switch modes with `Command+Option+2` through `Command+Option+8`.
 - A listen-only Core Graphics event tap watches Option-drag gestures.
 - A transparent AppKit overlay draws the zone preview.
 
@@ -80,7 +80,7 @@ On first run, grant Accessibility permission. If drag detection does not start, 
 
 macOS usage:
 
-- `Command+Option+3` through `Command+Option+8` switch the active drag grid.
+- `Command+Option+2` through `Command+Option+8` switch the active drag grid.
 - Option-drag a focused window by its titlebar to select one segment.
 - Option+Shift-drag spans multiple segments.
 

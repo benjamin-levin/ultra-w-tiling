@@ -5,8 +5,12 @@ enum CoordinateSpace {
         NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
     }
 
+    static func axPoint(fromAppKitPoint point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x, y: primaryTop - point.y)
+    }
+
     static func axFrame(fromAppKitFrame frame: CGRect) -> CGRect {
-        let top = globalTop
+        let top = primaryTop
         return CGRect(
             x: frame.minX,
             y: top - frame.maxY,
@@ -16,7 +20,7 @@ enum CoordinateSpace {
     }
 
     static func appKitFrame(fromAXFrame frame: CGRect) -> CGRect {
-        let top = globalTop
+        let top = primaryTop
         return CGRect(
             x: frame.minX,
             y: top - frame.maxY,
@@ -25,7 +29,9 @@ enum CoordinateSpace {
         )
     }
 
-    private static var globalTop: CGFloat {
-        NSScreen.screens.map { $0.frame.maxY }.max() ?? NSScreen.main?.frame.maxY ?? 0
+    // Accessibility coordinates start at the top-left of the primary display
+    // (screens[0]), not the topmost display.
+    private static var primaryTop: CGFloat {
+        NSScreen.screens.first?.frame.maxY ?? NSScreen.main?.frame.maxY ?? 0
     }
 }

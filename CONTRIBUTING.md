@@ -5,7 +5,7 @@ Keep this project version-specific unless you have tested a port on the target K
 Before opening a change:
 
 - run `./tools/verify-package.sh`;
-- test mode switching with `Meta+Alt+3` through `Meta+Alt+8`;
+- test mode switching with `Meta+Alt+2` through `Meta+Alt+8`;
 - test Alt-drag single-segment placement;
 - test Alt+Shift-drag multi-segment placement;
 - verify existing tiled windows are not resized when changing modes.

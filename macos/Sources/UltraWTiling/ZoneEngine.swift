@@ -6,7 +6,7 @@ struct ZoneSelection {
 }
 
 final class ZoneEngine {
-    static let validCounts = 3...8
+    static let validCounts = 2...8
 
     var count = 3
 

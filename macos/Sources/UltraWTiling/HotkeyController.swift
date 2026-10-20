@@ -83,6 +83,7 @@ final class HotkeyController {
 
     private static func keyCode(forDigit digit: Int) -> Int? {
         switch digit {
+        case 2: return kVK_ANSI_2
         case 3: return kVK_ANSI_3
         case 4: return kVK_ANSI_4
         case 5: return kVK_ANSI_5

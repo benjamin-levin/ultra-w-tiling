@@ -537,6 +537,10 @@ function setOneOneThree() {
     }
 }
 
+registerShortcut("UltrawideZones2", "Ultrawide Zones: 2 Columns", "Meta+Alt+2", function() {
+    setMode(2);
+});
+
 registerShortcut("UltrawideZones3", "Ultrawide Zones: 3 Columns", "Meta+Alt+3", function() {
     setMode(3);
 });

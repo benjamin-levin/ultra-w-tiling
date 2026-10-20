@@ -3,7 +3,7 @@
 This is the macOS companion implementation for Ultra-W Tiling. It is a native Swift/AppKit menu-bar app that uses public macOS APIs:
 
 - Accessibility APIs resize the focused window.
-- Carbon global hotkeys switch between 3 through 8 columns.
+- Carbon global hotkeys switch between 2 through 8 columns.
 - A listen-only Core Graphics event tap watches Option-drag gestures.
 - A transparent `NSPanel` draws the drag preview overlay.
 
@@ -37,7 +37,7 @@ On first run, grant Accessibility permission. If Option-drag detection does not 
 
 ## Usage
 
-- `Command+Option+3` through `Command+Option+8` switch the column count.
+- `Command+Option+2` through `Command+Option+8` switch the column count.
 - Option-drag a focused window by its titlebar to select one segment.
 - Option+Shift-drag spans from the starting segment to the release segment.
 

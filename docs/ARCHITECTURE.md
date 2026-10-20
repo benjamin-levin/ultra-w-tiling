@@ -9,7 +9,7 @@ The macOS backend in `macos/` is a native Swift/AppKit menu-bar app.
 Runtime pieces:
 
 - `AppController` owns the menu-bar item, mode selection, permissions prompt, hotkeys, and gesture watcher.
-- `HotkeyController` registers `Command+Option+3` through `Command+Option+8` with Carbon global hotkeys.
+- `HotkeyController` registers `Command+Option+2` through `Command+Option+8` with Carbon global hotkeys.
 - `GestureController` installs a listen-only Core Graphics event tap and watches Option-drag gestures that begin in the focused window's titlebar.
 - `OverlayController` displays a transparent non-activating `NSPanel` over the active screen and draws segment previews.
 - `AccessibilityWindowController` reads and writes the focused window frame through AXUIElement Accessibility attributes.
@@ -38,11 +38,11 @@ This native patch is the important part. Earlier script-only attempts fought KWi
 
 ## KWin Script
 
-`kwin-script/ultrawidezones` registers the user shortcuts and rebuilds the live KWin tile layout for 3 through 8 equal horizontal columns.
+`kwin-script/ultrawidezones` registers the user shortcuts and rebuilds the live KWin tile layout for 2 through 8 equal horizontal columns.
 
 The active responsibilities are:
 
-- register `Meta+Alt+3` through `Meta+Alt+8`;
+- register `Meta+Alt+2` through `Meta+Alt+8`;
 - call the D-Bus service when the mode changes;
 - rebuild each screen's root tile layout with zero padding;
 - detach and restore already tiled windows so a mode switch does not resize the current set of windows;

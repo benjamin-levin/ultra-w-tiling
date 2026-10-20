@@ -42,6 +42,7 @@ final class GestureController {
             callback: eventTapCallback,
             userInfo: refcon
         ) else {
+            debugLog("event tap creation failed (listen access \(CGPreflightListenEventAccess()), AX trusted \(AXIsProcessTrusted()))")
             notifier.showMessage("Drag watcher needs Input Monitoring permission")
             return
         }
@@ -53,6 +54,7 @@ final class GestureController {
         }
         CGEvent.tapEnable(tap: tap, enable: true)
         isRunning = true
+        debugLog("event tap started (enabled \(CGEvent.tapIsEnabled(tap: tap)), listen access \(CGPreflightListenEventAccess()), AX trusted \(AXIsProcessTrusted()))")
     }
 
     func stop() {
@@ -69,12 +71,17 @@ final class GestureController {
         overlay.hide()
     }
 
+    private var loggedEventTypes = Set<UInt32>()
+
     fileprivate func handle(type: CGEventType, event: CGEvent) {
+        if loggedEventTypes.insert(type.rawValue).inserted {
+            debugLog("first event of type \(type.rawValue), flags \(String(event.flags.rawValue, radix: 16))")
+        }
         switch type {
         case .leftMouseDown:
             handleMouseDown(event)
-        case .leftMouseDragged:
-            handleMouseDragged(event)
+        case .leftMouseDragged, .flagsChanged:
+            updatePreview(flags: event.flags)
         case .leftMouseUp:
             handleMouseUp(event)
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
@@ -86,50 +93,42 @@ final class GestureController {
         }
     }
 
+    // Every titlebar drag is tracked so Option can be pressed or released at any
+    // point during the drag. The window only snaps if Option is held on release.
     private func handleMouseDown(_ event: CGEvent) {
-        let flags = event.flags
-        guard flags.contains(.maskAlternate),
-              let window = accessibility.focusedWindow(),
-              let screen = CoordinateSpace.screen(containing: mouseLocation) else {
-            return
-        }
+        drag = nil
+        overlay.hide()
 
         let point = mouseLocation
-        guard window.appKitFrame.contains(point), isLikelyTitlebar(point: point, frame: window.appKitFrame) else {
+        guard let window = accessibility.window(at: point),
+              window.appKitFrame.contains(point),
+              isLikelyTitlebar(point: point, frame: window.appKitFrame) else {
             return
         }
 
-        let span = flags.contains(.maskShift)
-        let start = zoneEngine.zoneIndex(at: point, in: screen.visibleFrame)
-        drag = ActiveDrag(
-            window: window,
-            screen: screen,
-            startPoint: point,
-            startZone: start,
-            span: span
-        )
-
-        let selection = zoneEngine.selection(start: start, end: start, span: span)
-        overlay.show(on: screen, selection: selection)
+        drag = ActiveDrag(window: window, startPoint: point, spanStartZone: nil)
+        updatePreview(flags: event.flags)
     }
 
-    private func handleMouseDragged(_ event: CGEvent) {
+    private func updatePreview(flags: CGEventFlags) {
         guard var drag else {
             return
         }
 
-        let flags = event.flags
-        drag.span = drag.span || flags.contains(.maskShift)
-        self.drag = drag
+        guard flags.contains(.maskAlternate),
+              let target = currentTarget(flags: flags, drag: &drag) else {
+            drag.spanStartZone = nil
+            self.drag = drag
+            overlay.hide()
+            return
+        }
 
-        let point = mouseLocation
-        let end = zoneEngine.zoneIndex(at: point, in: drag.screen.visibleFrame)
-        let selection = zoneEngine.selection(start: drag.startZone, end: end, span: drag.span)
-        overlay.show(on: drag.screen, selection: selection)
+        self.drag = drag
+        overlay.show(on: target.screen, selection: target.selection)
     }
 
     private func handleMouseUp(_ event: CGEvent) {
-        guard let drag else {
+        guard var drag else {
             return
         }
 
@@ -138,16 +137,38 @@ final class GestureController {
 
         let point = mouseLocation
         let distance = hypot(point.x - drag.startPoint.x, point.y - drag.startPoint.y)
-        guard distance >= 8 else {
+        guard distance >= 8,
+              event.flags.contains(.maskAlternate),
+              let target = currentTarget(flags: event.flags, drag: &drag) else {
             return
         }
 
-        let end = zoneEngine.zoneIndex(at: point, in: drag.screen.visibleFrame)
-        let selection = zoneEngine.selection(start: drag.startZone, end: end, span: drag.span)
-        let frame = zoneEngine.frame(for: selection, in: drag.screen.visibleFrame)
+        let frame = zoneEngine.frame(for: target.selection, in: target.screen.visibleFrame)
         if !accessibility.setFrame(frame, for: drag.window) {
             notifier.showMessage("Could not resize this window")
         }
+    }
+
+    // Shift latches the span start at the zone under the pointer when it is
+    // first pressed with Option; releasing Shift returns to single-zone mode.
+    private func currentTarget(flags: CGEventFlags, drag: inout ActiveDrag) -> (screen: NSScreen, selection: ZoneSelection)? {
+        let point = mouseLocation
+        guard let screen = CoordinateSpace.screen(containing: point) else {
+            return nil
+        }
+
+        let end = zoneEngine.zoneIndex(at: point, in: screen.visibleFrame)
+        if flags.contains(.maskShift) {
+            if drag.spanStartZone == nil {
+                drag.spanStartZone = end
+            }
+        } else {
+            drag.spanStartZone = nil
+        }
+
+        let span = drag.spanStartZone != nil
+        let selection = zoneEngine.selection(start: drag.spanStartZone ?? end, end: end, span: span)
+        return (screen, selection)
     }
 
     private func isLikelyTitlebar(point: CGPoint, frame: CGRect) -> Bool {
@@ -162,10 +183,8 @@ final class GestureController {
 
 private struct ActiveDrag {
     let window: ManagedWindow
-    let screen: NSScreen
     let startPoint: CGPoint
-    let startZone: Int
-    var span: Bool
+    var spanStartZone: Int?
 }
 
 private let eventTapCallback: CGEventTapCallBack = { _, type, event, userInfo in
