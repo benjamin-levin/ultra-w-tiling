@@ -52,7 +52,17 @@ cat > "$APP_DIR/Contents/Info.plist" <<EOF
 EOF
 
 if command -v codesign >/dev/null 2>&1; then
-  codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_DIR"
+  SIGNING_DIR="${SIGNING_DIR:-$HOME/.config/ultrawtiling}"
+  SIGNING_KEYCHAIN="$SIGNING_DIR/signing.keychain-db"
+  if [[ "$CODESIGN_IDENTITY" == "-" && -f "$SIGNING_KEYCHAIN" && -f "$SIGNING_DIR/keychain-password" ]]; then
+    # Stable identity from scripts/setup-signing.sh keeps privacy grants across rebuilds.
+    # The self-signed cert is untrusted, so codesign only accepts it by SHA-1 hash.
+    security unlock-keychain -p "$(cat "$SIGNING_DIR/keychain-password")" "$SIGNING_KEYCHAIN"
+    signing_hash="$(security find-certificate -c "Ultra-W Tiling Local Signing" -Z "$SIGNING_KEYCHAIN" | awk '/SHA-1/ { print $NF; exit }')"
+    codesign --force --deep --sign "$signing_hash" "$APP_DIR"
+  else
+    codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_DIR"
+  fi
 fi
 
 echo "Built $APP_DIR"

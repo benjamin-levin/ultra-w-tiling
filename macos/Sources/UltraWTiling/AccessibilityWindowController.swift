@@ -7,6 +7,10 @@ struct ManagedWindow {
 }
 
 final class AccessibilityWindowController {
+    var isTrusted: Bool {
+        AXIsProcessTrusted()
+    }
+
     func requestTrust(prompt: Bool) -> Bool {
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
         let options = [key: prompt] as CFDictionary

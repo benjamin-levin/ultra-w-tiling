@@ -10,6 +10,7 @@ final class GestureController {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var drag: ActiveDrag?
+    private(set) var isRunning = false
 
     init(
         zoneEngine: ZoneEngine,
@@ -51,6 +52,7 @@ final class GestureController {
             CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
         CGEvent.tapEnable(tap: tap, enable: true)
+        isRunning = true
     }
 
     func stop() {
@@ -62,6 +64,7 @@ final class GestureController {
         }
         eventTap = nil
         runLoopSource = nil
+        isRunning = false
         drag = nil
         overlay.hide()
     }

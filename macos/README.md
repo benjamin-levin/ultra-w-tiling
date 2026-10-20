@@ -31,7 +31,9 @@ Open the app bundle:
 open "dist/Ultra-W Tiling.app"
 ```
 
-On first run, grant Accessibility permission. If Option-drag detection does not start, grant Input Monitoring permission as well, then restart the app.
+Run `scripts/setup-signing.sh` once before the first build. It creates a local signing identity so macOS keeps the app's permissions across rebuilds; ad-hoc signed builds lose them every time.
+
+On first run, grant Accessibility permission. If Option-drag detection does not start, grant Input Monitoring permission as well, then restart the app. The menu bar icon shows `UW` over `!` while a permission is missing, and the menu links to the right Privacy pane.
 
 ## Usage
 

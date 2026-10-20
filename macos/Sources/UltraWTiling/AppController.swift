@@ -13,6 +13,12 @@ final class AppController: NSObject, NSApplicationDelegate {
         notifier: notifier
     )
     private let notifier = NotificationController()
+    private var permissionTimer: Timer?
+    private var lastHadProblem = false
+
+    private var hasProblem: Bool {
+        !accessibility.isTrusted || !gestures.isRunning
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -25,6 +31,31 @@ final class AppController: NSObject, NSApplicationDelegate {
         registerHotkeys()
         _ = accessibility.requestTrust(prompt: true)
         gestures.start()
+        refreshStatus()
+        startPermissionTimer()
+    }
+
+    private func startPermissionTimer() {
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            self?.checkPermissions()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        permissionTimer = timer
+    }
+
+    private func checkPermissions() {
+        if accessibility.isTrusted && !gestures.isRunning {
+            gestures.start()
+        }
+        if hasProblem != lastHadProblem {
+            refreshStatus()
+        }
+    }
+
+    private func refreshStatus() {
+        lastHadProblem = hasProblem
+        updateStatusIcon()
+        rebuildMenu()
     }
 
     private func configureStatusItem() {
@@ -34,7 +65,8 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func updateStatusIcon() {
         statusItem.button?.title = ""
-        statusItem.button?.image = Self.stackedIcon(top: "UW", bottom: "\(zoneEngine.count)")
+        let bottom = hasProblem ? "!" : "\(zoneEngine.count)"
+        statusItem.button?.image = Self.stackedIcon(top: "UW", bottom: bottom)
         statusItem.button?.imagePosition = .imageOnly
     }
 
@@ -60,6 +92,10 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu() {
         let menu = NSMenu()
+
+        if hasProblem {
+            addPermissionWarning(to: menu)
+        }
 
         for count in ZoneEngine.validCounts {
             let item = NSMenuItem(
@@ -104,6 +140,39 @@ final class AppController: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
     }
 
+    private func addPermissionWarning(to menu: NSMenu) {
+        let trusted = accessibility.isTrusted
+        let message = trusted
+            ? "Drag watcher not running — check Input Monitoring"
+            : "Accessibility permission missing"
+        menu.addItem(NSMenuItem(title: message, action: nil, keyEquivalent: ""))
+
+        let openItem = NSMenuItem(
+            title: "Open Privacy Settings…",
+            action: #selector(openPrivacySettings),
+            keyEquivalent: ""
+        )
+        openItem.target = self
+        menu.addItem(openItem)
+
+        if !trusted {
+            menu.addItem(NSMenuItem(
+                title: "After granting, remove and re-add the app if it still fails",
+                action: nil,
+                keyEquivalent: ""
+            ))
+        }
+
+        menu.addItem(.separator())
+    }
+
+    @objc private func openPrivacySettings() {
+        let pane = accessibility.isTrusted ? "Privacy_ListenEvent" : "Privacy_Accessibility"
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     private func registerHotkeys() {
         for count in ZoneEngine.validCounts {
             hotkeys.registerModeHotkey(count: count) { [weak self] in
@@ -130,11 +199,13 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     @objc private func requestAccessibilityPermission() {
         _ = accessibility.requestTrust(prompt: true)
+        refreshStatus()
     }
 
     @objc private func restartDragWatcher() {
         gestures.stop()
         gestures.start()
+        refreshStatus()
     }
 
     @objc private func quit() {
