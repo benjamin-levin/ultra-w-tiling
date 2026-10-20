@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PATCH_FILE="$ROOT/patches/kwin-6.1.5-ultrawide-zones.patch"
+PATCH_FILE="$ROOT/patches/kwin-6.6.6-ultrawide-zones.patch"
 JS_FILE="$ROOT/kwin-script/ultrawidezones/contents/code/main.js"
 SERVICE_FILE="$ROOT/service/ultrawidezones-service"
 
@@ -38,7 +38,6 @@ fi
 
 echo "Checking KWin patch markers"
 search 'quickTileSpanGeometry' "$PATCH_FILE"
-search 'isKeyPressed' "$PATCH_FILE"
 search 'QSizeF\(0\.10, 0\.10\)' "$PATCH_FILE"
 search 'QTimer::singleShot' "$PATCH_FILE"
 

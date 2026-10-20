@@ -1,0 +1,138 @@
+diff -ruN kwin-v6.6.6.orig/src/tiles/tile.h kwin-v6.6.6/src/tiles/tile.h
+--- kwin-v6.6.6.orig/src/tiles/tile.h	2026-07-07 06:40:47.000000000 -0400
++++ kwin-v6.6.6/src/tiles/tile.h	2026-10-20 12:32:19.778005878 -0400
+@@ -176,7 +176,7 @@
+     VirtualDesktop *m_desktop = nullptr;
+     TileManager *m_tiling;
+     RectF m_relativeGeometry;
+-    QSizeF m_minimumSize = QSizeF(0.15, 0.15);
++    QSizeF m_minimumSize = QSizeF(0.10, 0.10);
+     QuickTileMode m_quickTileMode = QuickTileFlag::None;
+     qreal m_padding = 4.0;
+ };
+diff -ruN kwin-v6.6.6.orig/src/window.cpp kwin-v6.6.6/src/window.cpp
+--- kwin-v6.6.6.orig/src/window.cpp	2026-07-07 06:40:47.000000000 -0400
++++ kwin-v6.6.6/src/window.cpp	2026-10-20 12:32:30.203841942 -0400
+@@ -1071,6 +1071,9 @@
+     m_interactiveMoveResize.initialMaximizeMode = requestedMaximizeMode();
+     m_interactiveMoveResize.initialQuickTileMode = requestedQuickTileMode();
+     m_interactiveMoveResize.initialGeometryRestore = geometryRestore();
++    m_interactiveMoveResize.ultrawideShiftActive = input()->keyboardModifiers() & Qt::AltModifier;
++    m_interactiveMoveResize.ultrawideSpanActive = m_interactiveMoveResize.ultrawideShiftActive && (input()->keyboardModifiers() & Qt::ShiftModifier);
++    m_interactiveMoveResize.ultrawideSpanStart = m_interactiveMoveResize.anchor;
+ 
+     updateElectricGeometryRestore();
+     checkUnrestrictedInteractiveMoveResize();
+@@ -1085,6 +1088,8 @@
+ void Window::finishInteractiveMoveResize(bool cancel)
+ {
+     const bool wasMove = isInteractiveMove();
++    bool applyUltrawideSpanGeometry = false;
++    RectF ultrawideSpanGeometry;
+     leaveInteractiveMoveResize();
+ 
+     doFinishInteractiveMoveResize();
+@@ -1114,14 +1119,31 @@
+             maximize(*maximizeMode, m_electricGeometryRestore);
+         }
+         setElectricBorderMaximizing(false);
+-    } else if (wasMove && (m_interactiveMoveResize.modifiers & Qt::ShiftModifier)) {
+-        setQuickTileMode(QuickTileFlag::Custom, m_interactiveMoveResize.anchor);
++    } else if (wasMove && m_interactiveMoveResize.ultrawideShiftActive) {
++        if (m_interactiveMoveResize.ultrawideSpanActive) {
++            const RectF spanGeometry = quickTileSpanGeometry(m_interactiveMoveResize.ultrawideSpanStart, m_interactiveMoveResize.anchor);
++            if (!spanGeometry.isEmpty()) {
++                applyUltrawideSpanGeometry = true;
++                ultrawideSpanGeometry = spanGeometry;
++            }
++        } else {
++            setQuickTileMode(QuickTileFlag::Custom, m_interactiveMoveResize.anchor);
++        }
+     }
+     setElectricBorderMode(std::nullopt);
+     workspace()->outline()->hide();
+ 
+     m_interactiveMoveResize.counter++;
+     Q_EMIT interactiveMoveResizeFinished();
++
++    if (applyUltrawideSpanGeometry) {
++        QTimer::singleShot(0, this, [this, ultrawideSpanGeometry]() {
++            if (isDeleted()) {
++                return;
++            }
++            moveResize(ultrawideSpanGeometry);
++        });
++    }
+ }
+ 
+ // This function checks if it actually makes sense to perform a restricted move/resize.
+@@ -1288,9 +1310,18 @@
+         }
+ 
+         if (!isRequestedFullScreen()) {
+-            if (modifiers & Qt::ShiftModifier) {
++            if (modifiers & Qt::AltModifier) {
++                m_interactiveMoveResize.ultrawideShiftActive = true;
++                if ((modifiers & Qt::ShiftModifier) && !m_interactiveMoveResize.ultrawideSpanActive) {
++                    m_interactiveMoveResize.ultrawideSpanActive = true;
++                    m_interactiveMoveResize.ultrawideSpanStart = global;
++                }
++            }
++            if (m_interactiveMoveResize.ultrawideShiftActive) {
+                 resetQuickTilingMaximizationZones();
+-                const auto &r = quickTileGeometry(QuickTileFlag::Custom, global);
++                const auto &r = m_interactiveMoveResize.ultrawideSpanActive
++                    ? quickTileSpanGeometry(m_interactiveMoveResize.ultrawideSpanStart, global)
++                    : quickTileGeometry(QuickTileFlag::Custom, global);
+                 if (r.isEmpty()) {
+                     workspace()->outline()->hide();
+                 } else {
+@@ -3528,6 +3559,27 @@
+     return workspace()->clientArea(MaximizeArea, this, pos);
+ }
+ 
++RectF Window::quickTileSpanGeometry(const QPointF &startPos, const QPointF &endPos) const
++{
++    LogicalOutput *startOutput = workspace()->outputAt(startPos);
++    LogicalOutput *endOutput = workspace()->outputAt(endPos);
++    if (!startOutput || !endOutput || startOutput != endOutput) {
++        return quickTileGeometry(QuickTileFlag::Custom, endPos);
++    }
++
++    RootTile *root = workspace()->rootTile(endOutput);
++    if (!root) {
++        return RectF();
++    }
++    Tile *startTile = root->pick(startPos);
++    Tile *endTile = root->pick(endPos);
++    if (!startTile || !endTile) {
++        return RectF();
++    }
++
++    return startTile->windowGeometry().united(endTile->windowGeometry());
++}
++
+ void Window::exitQuickTileMode()
+ {
+     const auto outputs = workspace()->outputs();
+diff -ruN kwin-v6.6.6.orig/src/window.h kwin-v6.6.6/src/window.h
+--- kwin-v6.6.6.orig/src/window.h	2026-07-07 06:40:47.000000000 -0400
++++ kwin-v6.6.6/src/window.h	2026-10-20 12:32:19.778369759 -0400
+@@ -1632,6 +1632,7 @@
+     void updateElectricGeometryRestore();
+     RectF quickTileGeometryRestore() const;
+     RectF quickTileGeometry(QuickTileMode mode, const QPointF &pos) const;
++    RectF quickTileSpanGeometry(const QPointF &startPos, const QPointF &endPos) const;
+     void exitQuickTileMode();
+ 
+     // geometry handling
+@@ -1905,6 +1906,9 @@
+         uint32_t counter = 0;
+         MaximizeMode initialMaximizeMode;
+         QuickTileMode initialQuickTileMode;
++        bool ultrawideShiftActive = false;
++        bool ultrawideSpanActive = false;
++        QPointF ultrawideSpanStart;
+     } m_interactiveMoveResize;
+ 
+     struct

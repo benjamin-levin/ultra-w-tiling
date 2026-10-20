@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KWIN_VERSION="${KWIN_VERSION:-6.1.5}"
+KWIN_VERSION="${KWIN_VERSION:-6.6.6}"
 KWIN_TARBALL_URL="${KWIN_TARBALL_URL:-https://invent.kde.org/plasma/kwin/-/archive/v${KWIN_VERSION}/kwin-v${KWIN_VERSION}.tar.gz}"
 WORKDIR="${WORKDIR:-/tmp/kwin-ultrawide-zones}"
 DEFAULT_SRC="$WORKDIR/kwin-v${KWIN_VERSION}"
@@ -24,10 +24,12 @@ packages=(
   kscreenlocker-dev
   kwin-dev
   kwayland-dev
+  libcanberra-dev
   libcap-dev
   libdisplay-info-dev
   libdrm-dev
   libegl-dev
+  libeis-dev
   libepoxy-dev
   libfontconfig-dev
   libfreetype-dev
@@ -55,8 +57,9 @@ packages=(
   libkf6widgetsaddons-dev
   libkf6windowsystem-dev
   libkf6xmlgui-dev
-  libkdecorations2-dev
+  libkdecorations3-dev
   libkglobalacceld-dev
+  knighttime-dev
   libkpipewire-dev
   liblcms2-dev
   libpipewire-0.3-dev
@@ -78,6 +81,7 @@ packages=(
   libxcb-present-dev
   libxcb-randr0-dev
   libxcb-render0-dev
+  libxcb-res0-dev
   libxcb-shape0-dev
   libxcb-shm0-dev
   libxcb-sync-dev
@@ -99,11 +103,13 @@ packages=(
   qt6-base-private-dev
   qt6-declarative-dev
   qt6-declarative-private-dev
+  qt6-svg-dev
   qt6-sensors-dev
   qt6-tools-dev
   qt6-wayland-dev
   qt6-wayland-private-dev
   wayland-protocols
+  xwayland
 )
 
 say() {
@@ -203,8 +209,7 @@ prepare_source() {
 
 verify_patched_source() {
   grep -q 'quickTileSpanGeometry' "$SRC/src/window.cpp" || die "KWin source is missing the Alt+Shift span patch"
-  grep -q 'isKeyPressed' "$SRC/src/input.cpp" || die "KWin source is missing the physical key state patch"
-  grep -q 'QSizeF(0.10, 0.10)' "$SRC/src/tiles/tile.cpp" || die "KWin source is missing the smaller custom tile minimum"
+  grep -q 'QSizeF(0.10, 0.10)' "$SRC/src/tiles/tile.h" || die "KWin source is missing the smaller custom tile minimum"
 }
 
 configure_build() {

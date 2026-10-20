@@ -2,7 +2,7 @@
 
 Ultra-W Tiling is an ultrawide window tiling project for 32:9 displays. It provides fast horizontal zone picking for 3 through 8 equal columns.
 
-The Linux implementation is a Plasma/KWin 6.1.5 customization. The macOS implementation is a native Swift/AppKit menu-bar app.
+The Linux implementation is a Plasma/KWin 6.6.6 customization. The macOS implementation is a native Swift/AppKit menu-bar app.
 
 ## Linux/KWin
 
@@ -18,7 +18,7 @@ This repository contains a KWin script, a small D-Bus activation service, and a 
 
 ### Supported Target
 
-This is currently version-locked to KWin 6.1.5 on an apt-based Plasma 6 system. It was built for a local Plasma Wayland setup where KWin reports version `6.1.5`.
+This is currently version-locked to KWin 6.6.6 on an apt-based Plasma 6 system. It was built for a local Plasma Wayland setup where KWin reports version `6.6.6`.
 
 Do not apply the patch blindly to another KWin release. KWin has no stable internal ABI for this kind of compositor patch.
 
@@ -30,7 +30,7 @@ Run from the repository root:
 ./scripts/install.sh
 ```
 
-The installer downloads KWin 6.1.5 source, applies `patches/kwin-6.1.5-ultrawide-zones.patch`, builds it, stages it, backs up overwritten `/usr` files under `/var/backups/kwin-ultrawidezones-*`, installs the KWin script and D-Bus service into your home directory, and enables the shortcut defaults.
+The installer downloads KWin 6.6.6 source, applies `patches/kwin-6.6.6-ultrawide-zones.patch`, builds it, stages it, backs up overwritten `/usr` files under `/var/backups/kwin-ultrawidezones-*`, installs the KWin script and D-Bus service into your home directory, and enables the shortcut defaults.
 
 After the installer finishes, log out of Plasma Wayland and log back in.
 
@@ -38,7 +38,7 @@ Useful environment variables:
 
 - `NOCONFIRM=1` skips the interactive prompt.
 - `WORKDIR=/path` changes the build workspace.
-- `SRC=/path/to/kwin-v6.1.5` uses an existing KWin source tree.
+- `SRC=/path/to/kwin-v6.6.6` uses an existing KWin source tree.
 - `ALLOW_VERSION_MISMATCH=1` bypasses the installed KWin version guard.
 
 ### Usage

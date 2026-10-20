@@ -2,13 +2,13 @@
 
 ## The Build Cannot Configure
 
-Check the missing package named by CMake. The installer includes the dependency set that was needed for KWin 6.1.5 on the original apt-based Plasma system, but package names can vary between distributions.
+Check the missing package named by CMake. The installer includes the dependency set that was needed for KWin 6.6.6 on the original apt-based Plasma system, but package names can vary between distributions.
 
 Common missing packages from the original build were `kwayland-dev` and `libxcb-util-dev`.
 
 ## KWin Version Mismatch
 
-The patch targets KWin 6.1.5. If the installer reports another installed version, stop and port the patch to that exact KWin source before installing.
+The patch targets KWin 6.6.6. If the installer reports another installed version, stop and port the patch to that exact KWin source before installing.
 
 `ALLOW_VERSION_MISMATCH=1 ./scripts/install.sh` exists for development, not for routine installation.
 

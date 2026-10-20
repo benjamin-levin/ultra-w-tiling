@@ -25,7 +25,7 @@ KWin Ultrawide Zones has three runtime pieces and one build-time piece.
 
 ## Native KWin Patch
 
-`patches/kwin-6.1.5-ultrawide-zones.patch` changes KWin internals so the compositor owns the drag behavior:
+`patches/kwin-6.6.6-ultrawide-zones.patch` changes KWin internals so the compositor owns the drag behavior:
 
 - uses Alt instead of Shift to trigger KWin's custom-tile drag outline;
 - lowers KWin's custom tile minimum width from `0.15` to `0.10`, which allows 7 and 8 equal columns;
@@ -66,6 +66,6 @@ The service exits after a short idle timeout and is normally launched by the D-B
 
 ## Installer
 
-`scripts/install.sh` is intentionally self-contained. It downloads KWin 6.1.5, applies the bundled patch, builds KWin, stages the install, backs up every overwritten `/usr` file, then atomically replaces the staged files.
+`scripts/install.sh` is intentionally self-contained. It downloads KWin 6.6.6, applies the bundled patch, builds KWin, stages the install, backs up every overwritten `/usr` file, then atomically replaces the staged files.
 
 The atomic replacement matters. Copying directly over `libkwin.so` while KWin is running can truncate the active library and crash the session. The installer copies each staged file to a hidden temporary path in the destination directory, then moves it into place.
