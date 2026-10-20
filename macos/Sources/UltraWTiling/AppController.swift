@@ -28,8 +28,34 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     private func configureStatusItem() {
-        statusItem.button?.title = "UW \(zoneEngine.count)"
+        updateStatusIcon()
         rebuildMenu()
+    }
+
+    private func updateStatusIcon() {
+        statusItem.button?.title = ""
+        statusItem.button?.image = Self.stackedIcon(top: "UW", bottom: "\(zoneEngine.count)")
+        statusItem.button?.imagePosition = .imageOnly
+    }
+
+    private static func stackedIcon(top: String, bottom: String) -> NSImage {
+        let height = NSStatusBar.system.thickness
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: floor(height * 0.4), weight: .bold)
+        ]
+        let topLine = NSAttributedString(string: top, attributes: attributes)
+        let bottomLine = NSAttributedString(string: bottom, attributes: attributes)
+        let width = ceil(max(topLine.size().width, bottomLine.size().width))
+        let lineHeight = ceil(max(topLine.size().height, bottomLine.size().height))
+        let gap = max(0, floor((height - 2 * lineHeight) / 2))
+
+        let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
+            topLine.draw(at: NSPoint(x: (width - topLine.size().width) / 2, y: gap))
+            bottomLine.draw(at: NSPoint(x: (width - bottomLine.size().width) / 2, y: gap + lineHeight))
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     private func rebuildMenu() {
@@ -97,7 +123,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
         zoneEngine.count = count
         UserDefaults.standard.set(count, forKey: "zoneCount")
-        statusItem.button?.title = "UW \(count)"
+        updateStatusIcon()
         rebuildMenu()
         notifier.showModeChanged(count: count)
     }
