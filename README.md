@@ -82,7 +82,9 @@ macOS usage:
 
 - `Command+Option+2` through `Command+Option+8` switch the active drag grid.
 - Option-drag a focused window by its titlebar to select one segment.
+- Option can be pressed or released at any point during a drag; the window only snaps if Option is held on release.
 - Option+Shift-drag spans multiple segments.
+- While Option-dragging, `A` splits the target tile into one more row and `Z` removes a row (1 to 6). The row count is remembered, and Shift spans rows as well as columns.
 
 ## License
 

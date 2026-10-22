@@ -39,6 +39,8 @@ On first run, grant Accessibility permission. If Option-drag detection does not 
 
 - `Command+Option+2` through `Command+Option+8` switch the column count.
 - Option-drag a focused window by its titlebar to select one segment.
-- Option+Shift-drag spans from the starting segment to the release segment.
+- Option can be pressed or released at any point during a drag; the window only snaps if Option is held on release.
+- Option+Shift-drag spans from the segment under the pointer when Shift was pressed to the release segment.
+- While Option-dragging, `A` splits the target tile into one more row and `Z` removes a row (1 to 6). The row count is remembered, and Shift spans rows as well as columns.
 
 The app is intentionally menu-bar only. It does not patch WindowServer or use private APIs.

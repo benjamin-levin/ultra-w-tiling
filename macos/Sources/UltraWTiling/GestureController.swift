@@ -31,13 +31,15 @@ final class GestureController {
             CGEventMask(1 << CGEventType.leftMouseDown.rawValue) |
             CGEventMask(1 << CGEventType.leftMouseDragged.rawValue) |
             CGEventMask(1 << CGEventType.leftMouseUp.rawValue) |
-            CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+            CGEventMask(1 << CGEventType.flagsChanged.rawValue) |
+            CGEventMask(1 << CGEventType.keyDown.rawValue) |
+            CGEventMask(1 << CGEventType.keyUp.rawValue)
 
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .listenOnly,
+            options: .defaultTap,
             eventsOfInterest: mask,
             callback: eventTapCallback,
             userInfo: refcon
@@ -72,8 +74,14 @@ final class GestureController {
     }
 
     private var loggedEventTypes = Set<UInt32>()
+    private var swallowedKeyUps = Set<Int>()
+    // Row count persists across drags and launches.
+    private var rows = min(max(UserDefaults.standard.integer(forKey: "rowCount"), 1), ZoneEngine.maxRows) {
+        didSet { UserDefaults.standard.set(rows, forKey: "rowCount") }
+    }
 
-    fileprivate func handle(type: CGEventType, event: CGEvent) {
+    // Returns true when the event should be swallowed.
+    fileprivate func handle(type: CGEventType, event: CGEvent) -> Bool {
         if loggedEventTypes.insert(type.rawValue).inserted {
             debugLog("first event of type \(type.rawValue), flags \(String(event.flags.rawValue, radix: 16))")
         }
@@ -84,6 +92,8 @@ final class GestureController {
             updatePreview(flags: event.flags)
         case .leftMouseUp:
             handleMouseUp(event)
+        case .keyDown, .keyUp:
+            return handleKey(type: type, event: event)
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
@@ -91,6 +101,36 @@ final class GestureController {
         default:
             break
         }
+        return false
+    }
+
+    // While the preview is showing, A adds a row to the target tile and Z
+    // removes one. Those presses are swallowed so the app being dragged does
+    // not also receive them.
+    private func handleKey(type: CGEventType, event: CGEvent) -> Bool {
+        let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        guard keyCode == kVK_ANSI_A || keyCode == kVK_ANSI_Z else {
+            return false
+        }
+
+        if type == .keyUp {
+            return swallowedKeyUps.remove(keyCode) != nil
+        }
+
+        guard var drag, event.flags.contains(.maskAlternate) else {
+            return false
+        }
+
+        if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+            let delta = keyCode == kVK_ANSI_A ? 1 : -1
+            rows = min(max(rows + delta, 1), ZoneEngine.maxRows)
+            // Re-latch the span corner so it stays inside the new row grid.
+            drag.spanStart = nil
+            self.drag = drag
+            updatePreview(flags: event.flags)
+        }
+        swallowedKeyUps.insert(keyCode)
+        return true
     }
 
     // Every titlebar drag is tracked so Option can be pressed or released at any
@@ -106,7 +146,7 @@ final class GestureController {
             return
         }
 
-        drag = ActiveDrag(window: window, startPoint: point, spanStartZone: nil)
+        drag = ActiveDrag(window: window, startPoint: point, spanStart: nil)
         updatePreview(flags: event.flags)
     }
 
@@ -117,7 +157,7 @@ final class GestureController {
 
         guard flags.contains(.maskAlternate),
               let target = currentTarget(flags: flags, drag: &drag) else {
-            drag.spanStartZone = nil
+            drag.spanStart = nil
             self.drag = drag
             overlay.hide()
             return
@@ -149,25 +189,31 @@ final class GestureController {
         }
     }
 
-    // Shift latches the span start at the zone under the pointer when it is
-    // first pressed with Option; releasing Shift returns to single-zone mode.
+    // Shift latches the span corner at the cell (column, row) under the pointer
+    // when it is first pressed with Option; the selection is the rectangle from
+    // that corner to the cell under the pointer. Releasing Shift returns to a
+    // single cell.
     private func currentTarget(flags: CGEventFlags, drag: inout ActiveDrag) -> (screen: NSScreen, selection: ZoneSelection)? {
         let point = mouseLocation
         guard let screen = CoordinateSpace.screen(containing: point) else {
             return nil
         }
 
-        let end = zoneEngine.zoneIndex(at: point, in: screen.visibleFrame)
+        let column = zoneEngine.zoneIndex(at: point, in: screen.visibleFrame)
+        let row = zoneEngine.rowIndex(at: point, in: screen.visibleFrame, rows: rows)
         if flags.contains(.maskShift) {
-            if drag.spanStartZone == nil {
-                drag.spanStartZone = end
+            if drag.spanStart == nil {
+                drag.spanStart = (column, row)
             }
         } else {
-            drag.spanStartZone = nil
+            drag.spanStart = nil
         }
 
-        let span = drag.spanStartZone != nil
-        let selection = zoneEngine.selection(start: drag.spanStartZone ?? end, end: end, span: span)
+        let start = drag.spanStart ?? (column, row)
+        var selection = zoneEngine.selection(start: start.column, end: column, span: drag.spanStart != nil)
+        selection.rows = rows
+        selection.row = min(start.row, row)
+        selection.rowSpan = abs(start.row - row) + 1
         return (screen, selection)
     }
 
@@ -184,7 +230,7 @@ final class GestureController {
 private struct ActiveDrag {
     let window: ManagedWindow
     let startPoint: CGPoint
-    var spanStartZone: Int?
+    var spanStart: (column: Int, row: Int)?
 }
 
 private let eventTapCallback: CGEventTapCallBack = { _, type, event, userInfo in
@@ -193,6 +239,8 @@ private let eventTapCallback: CGEventTapCallBack = { _, type, event, userInfo in
     }
 
     let controller = Unmanaged<GestureController>.fromOpaque(userInfo).takeUnretainedValue()
-    controller.handle(type: type, event: event)
+    if controller.handle(type: type, event: event) {
+        return nil
+    }
     return Unmanaged.passUnretained(event)
 }

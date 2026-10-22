@@ -75,6 +75,34 @@ private final class OverlayView: NSView {
             ).insetBy(dx: 2, dy: 2)
 
             let isSelected = index >= selection.start && index < selection.start + selection.span
+            if !isSelected || selection.rows == 1 {
+                (isSelected ? selected : base).setFill()
+                NSBezierPath(rect: rect).fill()
+            }
+
+            stroke.setStroke()
+            let path = NSBezierPath(rect: rect)
+            path.lineWidth = 1
+            path.stroke()
+        }
+
+        guard selection.rows > 1 else {
+            return
+        }
+
+        // Split the selected columns into rows and highlight the target row.
+        let rowHeight = bounds.height / CGFloat(selection.rows)
+        let left = CGFloat(selection.start) * segmentWidth
+        let width = CGFloat(selection.span) * segmentWidth
+        for row in 0..<selection.rows {
+            let rect = NSRect(
+                x: left,
+                y: CGFloat(row) * rowHeight,
+                width: width,
+                height: rowHeight
+            ).insetBy(dx: 2, dy: 2)
+
+            let isSelected = row >= selection.row && row < selection.row + selection.rowSpan
             (isSelected ? selected : base).setFill()
             NSBezierPath(rect: rect).fill()
 
